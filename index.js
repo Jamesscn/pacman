@@ -41,7 +41,6 @@ var gameInterval = null
 
 /*
 	TODO:
-	Fix the ghost/pacman hitbox
 	Add run mechanism when superpellet has been eaten
 	Improve graphics
 	Slower ghosts when running
@@ -563,7 +562,11 @@ function game() {
 			}
 		}
 		for(var i = 0; i < 4; i++) {
-			if(ghosts[i].x == pacmanX && ghosts[i].y == pacmanY) {
+			var x1 = pacmanX * tileSize + pacmanSubX < (ghosts[i].x + 1) * tileSize + ghosts[i].subX
+			var x2 = (pacmanX + 1) * tileSize + pacmanSubX > ghosts[i].x * tileSize + ghosts[i].subX
+			var y1 = pacmanY * tileSize + pacmanSubY < (ghosts[i].y + 1) * tileSize + ghosts[i].subY
+			var y2 = (pacmanY + 1) * tileSize + pacmanSubY > ghosts[i].y * tileSize + ghosts[i].subY
+			if(x1 && x2 && y1 && y2) {
 				if(ghosts[i].dead == false && ghosts[i].edible == false) {
 					mouthStretch = 0
 					deathAnimation = 90
