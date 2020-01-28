@@ -1,6 +1,10 @@
 var canvasElement = document.getElementById("canvas")
 var canvas = canvasElement.getContext("2d")
 
+var screen = 0
+var selectedOption = 0
+var menuOptions = []
+var keyActions = []
 var lives = 3
 var level = 1
 var score = 0
@@ -31,12 +35,18 @@ var fruitScores = [100, 300, 500, 700, 1000, 2000, 3000, 5000]
 var modScore = 0
 var mouthStretch = 0
 var deathAnimation = 0
+var threshold = 0.5
 var mapString = "tvencdgdcfgfeh3dcecfcllllllllllGGGGhGGGGmlplp6lmlpt1A1Ap0p1RBmlmlBlBmmGGGGGGGGFplBBllpplBBmmlhlBBmmGFqF6GmGFllBl4hlpll06lkl5lA0k0pg000mg1g1B5g5hp05lmkg015Blg081004200llB400hpll06klll5A0k0pg000mg1g1B5llhp05lmklhl5BlmGGGF6GGGFplBlAplplBBmlmlBlBmnFqGGaGGmJlBBBllppplmmmlhlBBBmGFqF6GmGFplllAplllBBllmlBllmmGGGGGGGGFlllllllllk"
 var ghosts = []
 var colours = ["red", "pink", "cyan", "orange"]
 var map = [[]]
 var gates = []
 var labels = []
+var customKeys = ["d", "w", "a", "s"]
+var gamepadHeldKeys = []
+var gamepadHeldAxes = []
+var settingCustomKey = false
+var customKeyIndex = 0
 var gameInterval = null
 
 /*
@@ -47,55 +57,241 @@ var gameInterval = null
 	Fix AI
 	Different exit times
 	Music and effects
+
+	EXTRAS:
+	Level editor
+	Custom resizing
 */
 
 window.onload = function () {
 	//var str = "11111111111111111111111111111122222222222210122222222222211211112111112101211111211112113100121000121012100012100131121111211111211121111121111211222222222222222222222222222112111121121111111112112111121121111211211110111121121111211222222112222101222211222222111111121111101010111112111111100001211111011101111121000011000012110000000000011210000110000121101110001110112100001111111211010000000101121111110000002000100000001000200000011111121101000000010112111111100001211011111111101121000011000012110000000000011210000110000121101111111110112100001111111211011110111101121111111222222222222101222222222222112111121111121012111112111121121111211111211121111121111211322112222222202222222211223111121121121111111112112112111111211211211110111121121121111222222112222101222211222222112111111111121012111111111121121111111111211121111111111211222222222222222222222222222111111111111111111111111111111"
 	//console.log(encode(str))
-	for(var i = 0; i < 4; i++) {
-		ghosts[i] = {
-			x: 0,
-			y: 0,
-			subX: 0,
-			subY: 0,
-			spawnX: 0,
-			spawnY: 0,
-			direction: 0,
-			edible: false,
-			dead: false,
-			gating: true,
-			leavingGate: false,
-			leavingDirection: 0,
-			colour: colours[i]
+	menuOptions.push({
+		text: "Start Game",
+		colour: "black",
+		action: function() {
+			for(var i = 0; i < 4; i++) {
+				ghosts[i] = {
+					x: 0,
+					y: 0,
+					subX: 0,
+					subY: 0,
+					spawnX: 0,
+					spawnY: 0,
+					direction: 0,
+					edible: false,
+					dead: false,
+					gating: true,
+					leavingGate: false,
+					leavingDirection: 0,
+					colour: colours[i]
+				}
+			}
+			for(var i = 0; i < 8; i++) {
+				fruit[i] = {
+					score: fruitScores[i],
+					available: false,
+					edible: false,
+					timeout: 1000
+				}
+			}
+			fruit[0].available = true
+			decode(mapString)
+			canvasElement.width = tileSize * sizeX
+			canvasElement.height = tileSize * (sizeY + 2)
+			screen = 1
+			gameInterval = setInterval(game, 1000/60)
 		}
-	}
-	for(var i = 0; i < 8; i++) {
-		fruit[i] = {
-			score: fruitScores[i],
-			available: false,
-			edible: false,
-			timeout: 1000
+	})
+	menuOptions.push({
+		text: "Set RIGHT",
+		colour: "black",
+		action: function() {
+			settingCustomKey = true
+			customKeyIndex = 0
+			menuOptions[1].colour = "red"
 		}
-	}
-	fruit[0].available = true
-	decode(mapString)
-	canvasElement.width = tileSize * sizeX;
-	canvasElement.height = tileSize * (sizeY + 2);
+	})
+	menuOptions.push({
+		text: "Set UP",
+		colour: "black",
+		action: function() {
+			settingCustomKey = true
+			customKeyIndex = 1
+			menuOptions[2].colour = "red"
+		}
+	})
+	menuOptions.push({
+		text: "Set LEFT",
+		colour: "black",
+		action: function() {
+			settingCustomKey = true
+			customKeyIndex = 2
+			menuOptions[3].colour = "red"
+		}
+	})
+	menuOptions.push({
+		text: "Set DOWN",
+		colour: "black",
+		action: function() {
+			settingCustomKey = true
+			customKeyIndex = 3
+			menuOptions[4].colour = "red"
+		}
+	})
+	menuOptions.push({
+		text: "Set ENTER",
+		colour: "black",
+		action: function() {
+			settingCustomKey = true
+			customKeyIndex = 4
+			menuOptions[5].colour = "red"
+		}
+	})
+	keyActions.push(function() {
+		if(screen == 1) {
+			pacmanNextDirection = 0
+		}
+	})
+	keyActions.push(function() {
+		if(screen == 0) {
+			selectedOption = (selectedOption + menuOptions.length - 1) % menuOptions.length
+		} else {
+			pacmanNextDirection = 1
+		}
+	})
+	keyActions.push(function() {
+		if(screen == 1) {
+			pacmanNextDirection = 2
+		}
+	})
+	keyActions.push(function() {
+		if(screen == 0) {
+			selectedOption = (selectedOption + 1) % menuOptions.length
+		} else {
+			pacmanNextDirection = 3
+		}
+	})
+	keyActions.push(function() {
+		if(screen == 0) {
+			menuOptions[selectedOption].action()
+		}
+	})
 	draw()
-	gameInterval = setInterval(game, 1000/60)
+	gameInterval = setInterval(menu, 1000/60)
+	setInterval(gamepadListener, 1000/60)
 }
 
 document.addEventListener("keydown", function(event) {
-	if(event.key == "d") {
-		pacmanNextDirection = 0
-	} else if (event.key == "w") { 
-		pacmanNextDirection = 1
-	} else if (event.key == "a") {
-		pacmanNextDirection = 2
-	} else if (event.key == "s") {
-		pacmanNextDirection = 3
+	if(settingCustomKey == true) {
+		customKeys[customKeyIndex] = event.key
+		settingCustomKey = false
+		for(var i = 0; i < menuOptions.length; i++) {
+			menuOptions[i].colour = "black"
+		}
+	} else {
+		if(event.key == "Right" || event.key == "ArrowRight" || event.key == customKeys[0]) {
+			keyActions[0]()
+		} else if (event.key == "Up" || event.key == "ArrowUp" || event.key == customKeys[1]) { 
+			keyActions[1]()
+		} else if (event.key == "Left" || event.key == "ArrowLeft" || event.key == customKeys[2]) {
+			keyActions[2]()
+		} else if (event.key == "Down" || event.key == "ArrowDown" || event.key == customKeys[3]) {
+			keyActions[3]()
+		} else if (event.key == "Enter") {
+			keyActions[4]()
+		}
 	}
 })
+
+function gamepadListener() {
+	var gamepads = navigator.getGamepads()
+	for(var i = 0; i < gamepads.length; i++) {
+		if(gamepadHeldKeys[i] == null) {
+			gamepadHeldKeys[i] = []
+		}
+		if(gamepadHeldAxes[i] == null) {
+			gamepadHeldAxes[i] = []
+		}
+		for(var j = 0; j < gamepads[i].buttons.length; j++) {
+			if(gamepadHeldKeys[i][j] == null) {
+				gamepadHeldKeys[i][j] = false
+			}
+			if(gamepads[i].buttons[j].pressed == true) {
+				if(gamepadHeldKeys[i][j] == false) {
+					if(settingCustomKey == true) {
+						customKeys[customKeyIndex] = gamepads[i].buttons[j]
+						settingCustomKey = false
+						for(var k = 0; k < menuOptions.length; k++) {
+							menuOptions[k].colour = "black"
+						}
+					} else {
+						for(var k = 0; k < 5; k++) {
+							if(gamepads[i].buttons[j] == customKeys[k]) {
+								keyActions[k]()
+							}
+						}
+					}
+				}
+			}
+			gamepadHeldKeys[i][j] = gamepads[i].buttons[j].pressed
+		}
+		for(var j = 0; j < gamepads[i].axes.length; j++) {
+			if(gamepadHeldAxes[i][j] == null) {
+				gamepadHeldAxes[i][j] = false
+			}
+			if(gamepads[i].axes[j] > threshold) {
+				if(gamepadHeldAxes[i][j] == false) {
+					if(settingCustomKey == true) {
+						customKeys[customKeyIndex] = {
+							axis: j,
+							positive: true
+						}
+						settingCustomKey = false
+						for(var k = 0; k < menuOptions.length; k++) {
+							menuOptions[k].colour = "black"
+						}
+					} else {
+						for(var k = 0; k < 5; k++) {
+							if(customKeys[k] != null) {
+								if(j == customKeys[k].axis && customKeys[k].positive == true) {
+									keyActions[k]()
+								}
+							}
+						}
+					}
+				}
+			}
+			if(gamepads[i].axes[j] < -threshold) {
+				if(gamepadHeldAxes[i][j] == false) {
+					if(settingCustomKey == true) {
+						customKeys[customKeyIndex] = {
+							axis: j,
+							positive: false
+						}
+						settingCustomKey = false
+						for(var k = 0; k < menuOptions.length; k++) {
+							menuOptions[k].colour = "black"
+						}
+					} else {
+						for(var k = 0; k < 5; k++) {
+							if(customKeys[k] != null) {
+								if(j == customKeys[k].axis && customKeys[k].positive == false) {
+									keyActions[k]()
+								}
+							}
+						}
+					}
+				}
+			}
+			gamepadHeldAxes[i][j] = Math.abs(gamepads[i].axes[j]) > 0.5
+		}
+	}
+}
+
+function menu() {
+	//clearInterval(gameInterval)
+}
 
 function encode(string) {
 	var newString = ""
@@ -646,105 +842,121 @@ function game() {
 }
 
 function draw() {
-	canvas.fillStyle = "black"
-	canvas.fillRect(0, 0, tileSize * sizeX, tileSize * (sizeY + 2))
-	var mapDots = 0
-	for(var y = 0; y < sizeY; y++) {
-		for(var x = 0; x < sizeX; x++) {
-			var tile = map[y][x]
-			switch(tile) {
-				case 1: //wall
-					canvas.fillStyle = "blue"
-					canvas.fillRect(tileSize * x, tileSize * (y + 1), tileSize, tileSize)
-					break
-				case 2: //dot
-					canvas.fillStyle = "white"
-					canvas.beginPath()
-					canvas.arc(tileSize * (x + 0.5), tileSize * (y + 1.5), dotRadius, 0, Math.PI * 2, true)
-					canvas.fill()
-					mapDots++
-					break
-				case 3: //megadot
-					canvas.fillStyle = "white"
-					canvas.beginPath()
-					canvas.arc(tileSize * (x + 0.5), tileSize * (y + 1.5), megadotRadius, 0, Math.PI * 2, true)
-					canvas.fill()
-					mapDots++
-					break;
+	if(screen == 0) {
+		canvas.fillStyle = "black"
+		canvas.fillRect(0, 0, canvasElement.width, canvasElement.height)
+		canvas.textAlign = "center";
+		canvas.font = "24px sans-serif"
+		for(var i = 0; i < menuOptions.length; i++) {
+			canvas.fillStyle = "gray"
+			if(selectedOption == i) {
+				canvas.fillStyle = "white"
+			}
+			canvas.fillRect(canvasElement.width / 4, canvasElement.height / menuOptions.length * i, canvasElement.width / 2, canvasElement.height / menuOptions.length);
+			canvas.fillStyle = menuOptions[i].colour
+			canvas.fillText(menuOptions[i].text, canvasElement.width / 2, canvasElement.height / menuOptions.length * (i + 0.5))
+		}
+	} else if (screen == 1) {
+		canvas.fillStyle = "black"
+		canvas.fillRect(0, 0, tileSize * sizeX, tileSize * (sizeY + 2))
+		var mapDots = 0
+		for(var y = 0; y < sizeY; y++) {
+			for(var x = 0; x < sizeX; x++) {
+				var tile = map[y][x]
+				switch(tile) {
+					case 1: //wall
+						canvas.fillStyle = "blue"
+						canvas.fillRect(tileSize * x, tileSize * (y + 1), tileSize, tileSize)
+						break
+					case 2: //dot
+						canvas.fillStyle = "white"
+						canvas.beginPath()
+						canvas.arc(tileSize * (x + 0.5), tileSize * (y + 1.5), dotRadius, 0, Math.PI * 2, true)
+						canvas.fill()
+						mapDots++
+						break
+					case 3: //megadot
+						canvas.fillStyle = "white"
+						canvas.beginPath()
+						canvas.arc(tileSize * (x + 0.5), tileSize * (y + 1.5), megadotRadius, 0, Math.PI * 2, true)
+						canvas.fill()
+						mapDots++
+						break;
+				}
 			}
 		}
-	}
-	for(var i = 0; i < gates.length; i++) {
-		canvas.fillStyle = "brown"
-		canvas.fillRect(gates[i].x * tileSize, (gates[i].y + 1) * tileSize, tileSize, tileSize)
-	}
-	for(var i = 0; i < fruit.length; i++) {
-		if(fruit[i].edible == true) {
-			canvas.fillStyle = "green"
-			canvas.fillRect(fruitX * tileSize, (fruitY + 1) * tileSize, tileSize, tileSize)
+		for(var i = 0; i < gates.length; i++) {
+			canvas.fillStyle = "brown"
+			canvas.fillRect(gates[i].x * tileSize, (gates[i].y + 1) * tileSize, tileSize, tileSize)
 		}
-	}
-	for(var i = 0; i < 4; i++) {
-		if(ghosts[i].colour == "blue" && eating < 200 && Math.floor(eating / 20) % 2 == 0) {
+		for(var i = 0; i < fruit.length; i++) {
+			if(fruit[i].edible == true) {
+				canvas.fillStyle = "green"
+				canvas.fillRect(fruitX * tileSize, (fruitY + 1) * tileSize, tileSize, tileSize)
+			}
+		}
+		for(var i = 0; i < 4; i++) {
+			if(ghosts[i].colour == "blue" && eating < 200 && Math.floor(eating / 20) % 2 == 0) {
+				canvas.fillStyle = "white"
+			} else {
+				canvas.fillStyle = ghosts[i].colour
+			}
+			if(ghosts[i].dead == false) {
+				canvas.beginPath()
+				canvas.arc(tileSize * (ghosts[i].x + 0.5) + ghosts[i].subX, tileSize * (ghosts[i].y + 1.5) + ghosts[i].subY, tileSize / 2, 0, Math.PI, true)
+				for(var j = 0; j < 3; j++) {
+					canvas.lineTo(tileSize * (ghosts[i].x + j/3) + ghosts[i].subX, tileSize * (ghosts[i].y + 2) + ghosts[i].subY)
+					canvas.lineTo(tileSize * (ghosts[i].x + j/3 + 1/6) + ghosts[i].subX, tileSize * (ghosts[i].y + 1.8) + ghosts[i].subY)
+				}
+				canvas.lineTo(tileSize * (ghosts[i].x + 1) + ghosts[i].subX, tileSize * (ghosts[i].y + 2) + ghosts[i].subY)
+				canvas.fill()
+			}
 			canvas.fillStyle = "white"
-		} else {
-			canvas.fillStyle = ghosts[i].colour
-		}
-		if(ghosts[i].dead == false) {
 			canvas.beginPath()
-			canvas.arc(tileSize * (ghosts[i].x + 0.5) + ghosts[i].subX, tileSize * (ghosts[i].y + 1.5) + ghosts[i].subY, tileSize / 2, 0, Math.PI, true)
-			for(var j = 0; j < 3; j++) {
-				canvas.lineTo(tileSize * (ghosts[i].x + j/3) + ghosts[i].subX, tileSize * (ghosts[i].y + 2) + ghosts[i].subY)
-				canvas.lineTo(tileSize * (ghosts[i].x + j/3 + 1/6) + ghosts[i].subX, tileSize * (ghosts[i].y + 1.8) + ghosts[i].subY)
-			}
-			canvas.lineTo(tileSize * (ghosts[i].x + 1) + ghosts[i].subX, tileSize * (ghosts[i].y + 2) + ghosts[i].subY)
+			canvas.ellipse(tileSize * (ghosts[i].x + 0.3) + ghosts[i].subX, tileSize * (ghosts[i].y + 1.3) + ghosts[i].subY, tileSize / 7, tileSize / 5, 0, 0, 2 * Math.PI, true)
+			canvas.ellipse(tileSize * (ghosts[i].x + 0.7) + ghosts[i].subX, tileSize * (ghosts[i].y + 1.3) + ghosts[i].subY, tileSize / 7, tileSize / 5, 0, 0, 2 * Math.PI, true)
+			canvas.fill()
+			canvas.fillStyle = "black"
+			var eyePos = [0.1, 0.0, -0.1, 0.0]
+			canvas.beginPath()
+			canvas.arc(tileSize * (ghosts[i].x + 0.3 + eyePos[ghosts[i].direction]) + ghosts[i].subX, tileSize * (ghosts[i].y + 1.3 + eyePos[(ghosts[i].direction + 1) % 4]) + ghosts[i].subY, tileSize / 9, 0, 2 * Math.PI, true)
+			canvas.arc(tileSize * (ghosts[i].x + 0.7 + eyePos[ghosts[i].direction]) + ghosts[i].subX, tileSize * (ghosts[i].y + 1.3 + eyePos[(ghosts[i].direction + 1) % 4]) + ghosts[i].subY, tileSize / 9, 0, 2 * Math.PI, true)
 			canvas.fill()
 		}
-		canvas.fillStyle = "white"
-		canvas.beginPath()
-		canvas.ellipse(tileSize * (ghosts[i].x + 0.3) + ghosts[i].subX, tileSize * (ghosts[i].y + 1.3) + ghosts[i].subY, tileSize / 7, tileSize / 5, 0, 0, 2 * Math.PI, true)
-		canvas.ellipse(tileSize * (ghosts[i].x + 0.7) + ghosts[i].subX, tileSize * (ghosts[i].y + 1.3) + ghosts[i].subY, tileSize / 7, tileSize / 5, 0, 0, 2 * Math.PI, true)
-		canvas.fill()
-		canvas.fillStyle = "black"
-		var eyePos = [0.1, 0.0, -0.1, 0.0]
-		canvas.beginPath()
-		canvas.arc(tileSize * (ghosts[i].x + 0.3 + eyePos[ghosts[i].direction]) + ghosts[i].subX, tileSize * (ghosts[i].y + 1.3 + eyePos[(ghosts[i].direction + 1) % 4]) + ghosts[i].subY, tileSize / 9, 0, 2 * Math.PI, true)
-		canvas.arc(tileSize * (ghosts[i].x + 0.7 + eyePos[ghosts[i].direction]) + ghosts[i].subX, tileSize * (ghosts[i].y + 1.3 + eyePos[(ghosts[i].direction + 1) % 4]) + ghosts[i].subY, tileSize / 9, 0, 2 * Math.PI, true)
-		canvas.fill()
-	}
-	dots = mapDots
-	canvas.fillStyle = "yellow"
-	canvas.beginPath()
-	canvas.arc(tileSize * (pacmanX + 0.5) + pacmanSubX, tileSize * (pacmanY + 1.5) + pacmanSubY, tileSize / 2, (Math.PI / 7 + mouthStretch) - pacmanDirection * Math.PI / 2, -(Math.PI / 7 + mouthStretch) - pacmanDirection * Math.PI / 2, false)
-	var mouthEnd = [0.3, 0.5, 0.7, 0.5]
-	canvas.lineTo(tileSize * (pacmanX + mouthEnd[pacmanDirection]) + pacmanSubX, tileSize * (pacmanY + 1 + mouthEnd[(pacmanDirection + 1) % 4]) + pacmanSubY)
-	canvas.fill()
-	canvas.fillStyle = "black"
-	canvas.fillRect(0, 0, tileSize * sizeX, tileSize)
-	canvas.fillRect(0, tileSize * (sizeY + 1), tileSize * sizeX, tileSize)
-	canvas.fillStyle = "white"
-	canvas.textAlign = "start";
-	canvas.font = "16px sans-serif"
-	canvas.fillText(score, 4, tileSize * 0.9)
-	for(var i = 0; i < lives; i++) {
+		dots = mapDots
 		canvas.fillStyle = "yellow"
 		canvas.beginPath()
-		canvas.arc(tileSize * (1.2 * i + 0.5), tileSize * (sizeY + 1.5), tileSize / 2, Math.PI / 7, -Math.PI / 7, false)
+		canvas.arc(tileSize * (pacmanX + 0.5) + pacmanSubX, tileSize * (pacmanY + 1.5) + pacmanSubY, tileSize / 2, (Math.PI / 7 + mouthStretch) - pacmanDirection * Math.PI / 2, -(Math.PI / 7 + mouthStretch) - pacmanDirection * Math.PI / 2, false)
 		var mouthEnd = [0.3, 0.5, 0.7, 0.5]
-		canvas.lineTo(tileSize * (1.2 * i + 0.3), tileSize * (sizeY + 1.5))
+		canvas.lineTo(tileSize * (pacmanX + mouthEnd[pacmanDirection]) + pacmanSubX, tileSize * (pacmanY + 1 + mouthEnd[(pacmanDirection + 1) % 4]) + pacmanSubY)
 		canvas.fill()
-	}
-	for(var i = 0; i < fruit.length; i++) {
-		if(fruit[i].available == true) {
-			canvas.fillStyle = "green"
-			canvas.fillRect(tileSize * (sizeX - 1.2 * i - 1), tileSize * (sizeY + 1), tileSize, tileSize)
+		canvas.fillStyle = "black"
+		canvas.fillRect(0, 0, tileSize * sizeX, tileSize)
+		canvas.fillRect(0, tileSize * (sizeY + 1), tileSize * sizeX, tileSize)
+		canvas.fillStyle = "white"
+		canvas.textAlign = "start";
+		canvas.font = "16px sans-serif"
+		canvas.fillText(score, 4, tileSize * 0.9)
+		for(var i = 0; i < lives; i++) {
+			canvas.fillStyle = "yellow"
+			canvas.beginPath()
+			canvas.arc(tileSize * (1.2 * i + 0.5), tileSize * (sizeY + 1.5), tileSize / 2, Math.PI / 7, -Math.PI / 7, false)
+			var mouthEnd = [0.3, 0.5, 0.7, 0.5]
+			canvas.lineTo(tileSize * (1.2 * i + 0.3), tileSize * (sizeY + 1.5))
+			canvas.fill()
 		}
-	}
-	canvas.fillStyle = "white"
-	canvas.textAlign = "center";
-	canvas.font = "10px sans-serif"
-	for(var i = 0; i < labels.length; i++) {
-		canvas.fillText(labels[i].text, (labels[i].x + 0.5) * tileSize, (labels[i].y + 1.75) * tileSize)
+		for(var i = 0; i < fruit.length; i++) {
+			if(fruit[i].available == true) {
+				canvas.fillStyle = "green"
+				canvas.fillRect(tileSize * (sizeX - 1.2 * i - 1), tileSize * (sizeY + 1), tileSize, tileSize)
+			}
+		}
+		canvas.fillStyle = "white"
+		canvas.textAlign = "center";
+		canvas.font = "10px sans-serif"
+		for(var i = 0; i < labels.length; i++) {
+			canvas.fillText(labels[i].text, (labels[i].x + 0.5) * tileSize, (labels[i].y + 1.75) * tileSize)
+		}
 	}
 	requestAnimationFrame(draw)
 }
