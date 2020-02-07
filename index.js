@@ -4,6 +4,7 @@ var canvas = canvasElement.getContext("2d")
 var screen = 0
 var selectedOption = 0
 var menuOptions = []
+var settingsOptions = []
 var keyActions = []
 var lives = 3
 var level = 1
@@ -61,6 +62,12 @@ var gameInterval = null
 	EXTRAS:
 	Level editor
 	Custom resizing
+
+	Number conventions:
+	0 -> right
+	1 -> up
+	2 -> left
+	3 -> down
 */
 
 window.onload = function () {
@@ -68,7 +75,6 @@ window.onload = function () {
 	//console.log(encode(str))
 	menuOptions.push({
 		text: "Start Game",
-		colour: "black",
 		action: function() {
 			for(var i = 0; i < 4; i++) {
 				ghosts[i] = {
@@ -105,47 +111,37 @@ window.onload = function () {
 	})
 	menuOptions.push({
 		text: "Set RIGHT",
-		colour: "black",
 		action: function() {
 			settingCustomKey = true
 			customKeyIndex = 0
-			menuOptions[1].colour = "red"
 		}
 	})
 	menuOptions.push({
 		text: "Set UP",
-		colour: "black",
 		action: function() {
 			settingCustomKey = true
 			customKeyIndex = 1
-			menuOptions[2].colour = "red"
 		}
 	})
 	menuOptions.push({
 		text: "Set LEFT",
-		colour: "black",
 		action: function() {
 			settingCustomKey = true
 			customKeyIndex = 2
-			menuOptions[3].colour = "red"
 		}
 	})
 	menuOptions.push({
 		text: "Set DOWN",
-		colour: "black",
 		action: function() {
 			settingCustomKey = true
 			customKeyIndex = 3
-			menuOptions[4].colour = "red"
 		}
 	})
 	menuOptions.push({
 		text: "Set ENTER",
-		colour: "black",
 		action: function() {
 			settingCustomKey = true
 			customKeyIndex = 4
-			menuOptions[5].colour = "red"
 		}
 	})
 	keyActions.push(function() {
@@ -178,7 +174,6 @@ window.onload = function () {
 		}
 	})
 	draw()
-	gameInterval = setInterval(menu, 1000/60)
 	setInterval(gamepadListener, 1000/60)
 }
 
@@ -289,10 +284,6 @@ function gamepadListener() {
 	}
 }
 
-function menu() {
-	//clearInterval(gameInterval)
-}
-
 function encode(string) {
 	var newString = ""
 	var alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/"
@@ -341,8 +332,11 @@ function decode(string) {
 			value /= 4
 		}
 		for(var j = 0; j < 3; j++) {
-			map[y][x] = tiles[2 - j]
-			if(map[y][x] == 2 || map[y][x] == 3) {
+			map[y][x] = {
+				type: tiles[2 - j],
+				walls: []
+			}
+			if(map[y][x].type == 2 || map[y][x].type == 3) {
 				mapDots++
 			}
 			x++
@@ -354,6 +348,16 @@ function decode(string) {
 				} else {
 					map[y] = []
 				}
+			}
+		}
+	}
+	for(y = 0; y < sizeY; y++) {
+		for(x = 0; x < sizeX; x++) {
+			if(map[y][x].type == 1) {
+				map[y][x].walls[0] = (map[y][(x + 1) % sizeX].type != 1)
+				map[y][x].walls[1] = (map[(y - 1 + sizeY) % sizeY][x].type != 1)
+				map[y][x].walls[2] = (map[y][(x - 1 + sizeX) % sizeX].type != 1)
+				map[y][x].walls[3] = (map[(y + 1) % sizeY][x].type != 1)
 			}
 		}
 	}
@@ -376,7 +380,7 @@ function movePacman(direction, amount) {
 		mouthStretch = -0.3
 	}
 	if(direction == 0) {
-		if(pacmanSubX == 0 && map[pacmanY][(pacmanX + 1) % sizeX] != 1 && gateAt((pacmanX + 1) % sizeX, pacmanY) == false) {
+		if(pacmanSubX == 0 && map[pacmanY][(pacmanX + 1) % sizeX].type != 1 && gateAt((pacmanX + 1) % sizeX, pacmanY) == false) {
 			pacmanSubX += amount
 		} else if(pacmanSubX == tileSize) {
 			pacmanX++
@@ -385,7 +389,7 @@ function movePacman(direction, amount) {
 			pacmanSubX += amount
 		}
 	} else if (direction == 1) {
-		if(pacmanSubY == 0 && map[(pacmanY - 1 + sizeY) % sizeY][pacmanX] != 1 && gateAt(pacmanX, (pacmanY - 1 + sizeY) % sizeY) == false) {
+		if(pacmanSubY == 0 && map[(pacmanY - 1 + sizeY) % sizeY][pacmanX].type != 1 && gateAt(pacmanX, (pacmanY - 1 + sizeY) % sizeY) == false) {
 			pacmanSubY -= amount
 		} else if(pacmanSubY == -tileSize) {
 			pacmanY--
@@ -394,7 +398,7 @@ function movePacman(direction, amount) {
 			pacmanSubY -= amount
 		}
 	} else if (direction == 2) {
-		if(pacmanSubX == 0 && map[pacmanY][(pacmanX - 1 + sizeX) % sizeX] != 1 && gateAt((pacmanX - 1 + sizeX) % sizeX, pacmanY) == false) {
+		if(pacmanSubX == 0 && map[pacmanY][(pacmanX - 1 + sizeX) % sizeX].type != 1 && gateAt((pacmanX - 1 + sizeX) % sizeX, pacmanY) == false) {
 			pacmanSubX -= amount
 		} else if(pacmanSubX == -tileSize) {
 			pacmanX--
@@ -403,7 +407,7 @@ function movePacman(direction, amount) {
 			pacmanSubX -= amount
 		}
 	} else {
-		if(pacmanSubY == 0 && map[(pacmanY + 1) % sizeY][pacmanX] != 1 && gateAt(pacmanX, (pacmanY + 1) % sizeY) == false) {
+		if(pacmanSubY == 0 && map[(pacmanY + 1) % sizeY][pacmanX].type != 1 && gateAt(pacmanX, (pacmanY + 1) % sizeY) == false) {
 			pacmanSubY += amount
 		} else if(pacmanSubY == tileSize) {
 			pacmanY++
@@ -444,7 +448,7 @@ function doBFS(ghost, endPoint) {
 			dir = point.dir
 			break
 		}
-		if(map[point.y][(point.x + 1) % sizeX] != 1 && bfs[point.y][(point.x + 1) % sizeX] == 10000000) {
+		if(map[point.y][(point.x + 1) % sizeX].type != 1 && bfs[point.y][(point.x + 1) % sizeX] == 10000000) {
 			queue.push({
 				x: (point.x + 1) % sizeX,
 				y: point.y,
@@ -452,7 +456,7 @@ function doBFS(ghost, endPoint) {
 			})
 			bfs[point.y][(point.x + 1) % sizeX] = bfs[point.y][point.x] + 1
 		}
-		if(map[(point.y - 1 + sizeY) % sizeY][point.x] != 1 && bfs[(point.y - 1 + sizeY) % sizeY][point.x] == 10000000) {
+		if(map[(point.y - 1 + sizeY) % sizeY][point.x].type != 1 && bfs[(point.y - 1 + sizeY) % sizeY][point.x] == 10000000) {
 			queue.push({
 				x: point.x,
 				y: (point.y - 1 + sizeY) % sizeY,
@@ -460,7 +464,7 @@ function doBFS(ghost, endPoint) {
 			})
 			bfs[(point.y - 1 + sizeY) % sizeY][point.x] = bfs[point.y][point.x] + 1
 		}
-		if(map[point.y][(point.x - 1 + sizeX) % sizeX] != 1 && bfs[point.y][(point.x - 1 + sizeX) % sizeX] == 10000000) {
+		if(map[point.y][(point.x - 1 + sizeX) % sizeX].type != 1 && bfs[point.y][(point.x - 1 + sizeX) % sizeX] == 10000000) {
 			queue.push({
 				x: (point.x - 1 + sizeX) % sizeX,
 				y: point.y,
@@ -468,7 +472,7 @@ function doBFS(ghost, endPoint) {
 			})
 			bfs[point.y][(point.x - 1 + sizeX) % sizeX] = bfs[point.y][point.x] + 1
 		}
-		if(map[(point.y + 1) % sizeY][point.x] != 1 && bfs[(point.y + 1) % sizeY][point.x] == 10000000) {
+		if(map[(point.y + 1) % sizeY][point.x].type != 1 && bfs[(point.y + 1) % sizeY][point.x] == 10000000) {
 			queue.push({
 				x: point.x,
 				y: (point.y + 1) % sizeY,
@@ -481,11 +485,11 @@ function doBFS(ghost, endPoint) {
 }
 
 function searchAdjacent(ghost) {
-	var wallLeft = ghost.direction == 0 && map[ghost.y][(ghost.x + 1) % sizeX] == 1
-	var wallUp = ghost.direction == 1 && map[(ghost.y - 1 + sizeY) % sizeY][ghost.x] == 1
-	var wallRight = ghost.direction == 2 && map[ghost.y][(ghost.x - 1 + sizeX) % sizeX] == 1
-	var wallDown = ghost.direction == 3 && map[(ghost.y + 1) % sizeY][ghost.x] == 1
-	var wallCount = (map[ghost.y][(ghost.x + 1) % sizeX] == 1) + (map[(ghost.y - 1 + sizeY) % sizeY][ghost.x] == 1) + (map[ghost.y][(ghost.x - 1 + sizeX) % sizeX] == 1) + (map[(ghost.y + 1) % sizeY][ghost.x] == 1)
+	var wallLeft = ghost.direction == 0 && map[ghost.y][(ghost.x + 1) % sizeX].type == 1
+	var wallUp = ghost.direction == 1 && map[(ghost.y - 1 + sizeY) % sizeY][ghost.x].type == 1
+	var wallRight = ghost.direction == 2 && map[ghost.y][(ghost.x - 1 + sizeX) % sizeX].type == 1
+	var wallDown = ghost.direction == 3 && map[(ghost.y + 1) % sizeY][ghost.x].type == 1
+	var wallCount = (map[ghost.y][(ghost.x + 1) % sizeX].type == 1) + (map[(ghost.y - 1 + sizeY) % sizeY][ghost.x].type == 1) + (map[ghost.y][(ghost.x - 1 + sizeX) % sizeX].type == 1) + (map[(ghost.y + 1) % sizeY][ghost.x].type == 1)
 	var queue = []
 	if(wallLeft || wallUp || wallRight || wallDown || wallCount < 2) {
 		var point = {
@@ -493,7 +497,7 @@ function searchAdjacent(ghost) {
 			y: ghost.y,
 			dir: ghost.direction
 		}
-		if(map[point.y][(point.x + 1) % sizeX] != 1 && gateAt((point.x + 1) % sizeX, point.y) == false) {
+		if(map[point.y][(point.x + 1) % sizeX].type != 1 && gateAt((point.x + 1) % sizeX, point.y) == false) {
 			queue.push({
 				x: (point.x + 1) % sizeX,
 				y: point.y,
@@ -501,7 +505,7 @@ function searchAdjacent(ghost) {
 				dist: (pacmanX - ((point.x + 1) % sizeX)) * (pacmanX - ((point.x + 1) % sizeX)) + (pacmanY - point.y) * (pacmanY - point.y)
 			})
 		}
-		if(map[(point.y - 1 + sizeY) % sizeY][point.x] != 1 && gateAt(point.x, (point.y - 1 + sizeY) % sizeY) == false) {
+		if(map[(point.y - 1 + sizeY) % sizeY][point.x].type != 1 && gateAt(point.x, (point.y - 1 + sizeY) % sizeY) == false) {
 			queue.push({
 				x: point.x,
 				y: (point.y - 1 + sizeY) % sizeY,
@@ -509,7 +513,7 @@ function searchAdjacent(ghost) {
 				dist: (pacmanX - point.x) * (pacmanX - point.x) + (pacmanY - ((point.y - 1 + sizeY) % sizeY)) * (pacmanY - ((point.y - 1 + sizeY) % sizeY))
 			})
 		}
-		if(map[point.y][(point.x - 1 + sizeX) % sizeX] != 1 && gateAt((point.x - 1 + sizeX) % sizeX, point.y) == false) {
+		if(map[point.y][(point.x - 1 + sizeX) % sizeX].type != 1 && gateAt((point.x - 1 + sizeX) % sizeX, point.y) == false) {
 			queue.push({
 				x: (point.x - 1 + sizeX) % sizeX,
 				y: point.y,
@@ -517,7 +521,7 @@ function searchAdjacent(ghost) {
 				dist: (pacmanX - ((point.x - 1 + sizeX) % sizeX)) * (pacmanX - ((point.x - 1 + sizeX) % sizeX)) + (pacmanY - point.y) * (pacmanY - point.y)
 			})
 		}
-		if(map[(point.y + 1) % sizeY][point.x] != 1 && gateAt(point.x, (point.y + 1) % sizeY) == false) {
+		if(map[(point.y + 1) % sizeY][point.x].type != 1 && gateAt(point.x, (point.y + 1) % sizeY) == false) {
 			queue.push({
 				x: point.x,
 				y: (point.y + 1) % sizeY,
@@ -618,10 +622,10 @@ function moveGhost(ghost, amount) {
 			})
 			ghost.leavingDirection = ghost.direction
 		}
-		var wallLeft = ghost.direction == 0 && map[ghost.y][(ghost.x + 1) % sizeX] == 1
-		var wallUp = ghost.direction == 1 && map[(ghost.y - 1 + sizeY) % sizeY][ghost.x] == 1
-		var wallRight = ghost.direction == 2 && map[ghost.y][(ghost.x - 1 + sizeX) % sizeX] == 1
-		var wallDown = ghost.direction == 3 && map[(ghost.y + 1) % sizeY][ghost.x] == 1
+		var wallLeft = ghost.direction == 0 && map[ghost.y][(ghost.x + 1) % sizeX].type == 1
+		var wallUp = ghost.direction == 1 && map[(ghost.y - 1 + sizeY) % sizeY][ghost.x].type == 1
+		var wallRight = ghost.direction == 2 && map[ghost.y][(ghost.x - 1 + sizeX) % sizeX].type == 1
+		var wallDown = ghost.direction == 3 && map[(ghost.y + 1) % sizeY][ghost.x].type == 1
 		if(wallLeft || wallUp || wallRight || wallDown) {
 			return
 		}
@@ -726,14 +730,14 @@ function game() {
 				labels.splice(i, 1)
 			}
 		}
-		if(map[pacmanY][pacmanX] == 2) {
+		if(map[pacmanY][pacmanX].type == 2) {
 			score += 10
 			modScore += 10
-			map[pacmanY][pacmanX] = 0
-		} else if(map[pacmanY][pacmanX] == 3) {
+			map[pacmanY][pacmanX].type = 0
+		} else if(map[pacmanY][pacmanX].type == 3) {
 			score += 50
 			modScore += 50
-			map[pacmanY][pacmanX] = 0
+			map[pacmanY][pacmanX].type = 0
 			eating = 500
 			eatScore = 200
 			for(var i = 0; i < 4; i++) {
@@ -794,10 +798,10 @@ function game() {
 			}
 		}
 		if(pacmanSubX == 0 && pacmanSubY == 0) {
-			var canLeft = (pacmanNextDirection == 0 && map[pacmanY][(pacmanX + 1) % sizeX] != 1)
-			var canUp = (pacmanNextDirection == 1 && map[(pacmanY - 1 + sizeY) % sizeY][pacmanX] != 1)
-			var canRight = (pacmanNextDirection == 2 && map[pacmanY][(pacmanX - 1 + sizeX) % sizeX] != 1)
-			var canDown = (pacmanNextDirection == 3 && map[(pacmanY + 1) % sizeY][pacmanX] != 1)
+			var canLeft = (pacmanNextDirection == 0 && map[pacmanY][(pacmanX + 1) % sizeX].type != 1)
+			var canUp = (pacmanNextDirection == 1 && map[(pacmanY - 1 + sizeY) % sizeY][pacmanX].type != 1)
+			var canRight = (pacmanNextDirection == 2 && map[pacmanY][(pacmanX - 1 + sizeX) % sizeX].type != 1)
+			var canDown = (pacmanNextDirection == 3 && map[(pacmanY + 1) % sizeY][pacmanX].type != 1)
 			if(canLeft || canUp || canRight || canDown) {
 				pacmanDirection = pacmanNextDirection
 			}
@@ -845,16 +849,22 @@ function draw() {
 	if(screen == 0) {
 		canvas.fillStyle = "black"
 		canvas.fillRect(0, 0, canvasElement.width, canvasElement.height)
+		canvas.lineWidth = 2
 		canvas.textAlign = "center";
-		canvas.font = "24px sans-serif"
+		canvas.font = "20px sans-serif"
 		for(var i = 0; i < menuOptions.length; i++) {
-			canvas.fillStyle = "gray"
+			canvas.strokeStyle = "white"
 			if(selectedOption == i) {
-				canvas.fillStyle = "white"
+				canvas.strokeStyle = "blue"
 			}
-			canvas.fillRect(canvasElement.width / 4, canvasElement.height / menuOptions.length * i, canvasElement.width / 2, canvasElement.height / menuOptions.length);
-			canvas.fillStyle = menuOptions[i].colour
-			canvas.fillText(menuOptions[i].text, canvasElement.width / 2, canvasElement.height / menuOptions.length * (i + 0.5))
+			var containerWidth = 300
+			var containerHeight = 60
+			canvas.strokeRect(canvasElement.width / 2 - containerWidth / 2, containerHeight * (1.5 * i + 0.5), containerWidth, containerHeight);
+			canvas.fillStyle = "white"
+			if(settingCustomKey == true && i == customKeyIndex + 1) {
+				canvas.fillStyle = "red"
+			}
+			canvas.fillText(menuOptions[i].text, canvasElement.width / 2, containerHeight * (1.5 * i + 1))
 		}
 	} else if (screen == 1) {
 		canvas.fillStyle = "black"
@@ -862,11 +872,37 @@ function draw() {
 		var mapDots = 0
 		for(var y = 0; y < sizeY; y++) {
 			for(var x = 0; x < sizeX; x++) {
-				var tile = map[y][x]
+				var tile = map[y][x].type
 				switch(tile) {
 					case 1: //wall
-						canvas.fillStyle = "blue"
+						canvas.strokeStyle = "blue"
+						canvas.lineWidth = 2
+						canvas.fillStyle = "#000a31"
 						canvas.fillRect(tileSize * x, tileSize * (y + 1), tileSize, tileSize)
+						if(map[y][x].walls[0]) {
+							canvas.beginPath()
+							canvas.moveTo(tileSize * (x + 1), tileSize * (y + 1))
+							canvas.lineTo(tileSize * (x + 1), tileSize * (y + 2))
+							canvas.stroke()
+						}
+						if(map[y][x].walls[1]) {
+							canvas.beginPath()
+							canvas.moveTo(tileSize * x, tileSize * (y + 1))
+							canvas.lineTo(tileSize * (x + 1), tileSize * (y + 1))
+							canvas.stroke()
+						}
+						if(map[y][x].walls[2]) {
+							canvas.beginPath()
+							canvas.moveTo(tileSize * x, tileSize * (y + 1))
+							canvas.lineTo(tileSize * x, tileSize * (y + 2))
+							canvas.stroke()
+						}
+						if(map[y][x].walls[3]) {
+							canvas.beginPath()
+							canvas.moveTo(tileSize * x, tileSize * (y + 2))
+							canvas.lineTo(tileSize * (x + 1), tileSize * (y + 2))
+							canvas.stroke()
+						}
 						break
 					case 2: //dot
 						canvas.fillStyle = "white"
@@ -887,7 +923,7 @@ function draw() {
 		}
 		for(var i = 0; i < gates.length; i++) {
 			canvas.fillStyle = "brown"
-			canvas.fillRect(gates[i].x * tileSize, (gates[i].y + 1) * tileSize, tileSize, tileSize)
+			canvas.fillRect((gates[i].x + 1/3) * tileSize, (gates[i].y + 4/3) * tileSize, tileSize / 3, tileSize / 3)
 		}
 		for(var i = 0; i < fruit.length; i++) {
 			if(fruit[i].edible == true) {
@@ -941,7 +977,6 @@ function draw() {
 			canvas.fillStyle = "yellow"
 			canvas.beginPath()
 			canvas.arc(tileSize * (1.2 * i + 0.5), tileSize * (sizeY + 1.5), tileSize / 2, Math.PI / 7, -Math.PI / 7, false)
-			var mouthEnd = [0.3, 0.5, 0.7, 0.5]
 			canvas.lineTo(tileSize * (1.2 * i + 0.3), tileSize * (sizeY + 1.5))
 			canvas.fill()
 		}
