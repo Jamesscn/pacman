@@ -28,6 +28,7 @@ var fruitX = 0
 var fruitY = 0
 var currentFruit = 0
 var dots = -1
+var maxDots = -1
 var loading = 200
 var eating = 0
 var eatScore = 200
@@ -36,6 +37,8 @@ var fruitScores = [100, 300, 500, 700, 1000, 2000, 3000, 5000]
 var modScore = 0
 var mouthStretch = 0
 var deathAnimation = 0
+var flashTime = 20
+var flash = true
 var threshold = 0.5
 var mapString = "tvencdgdcfgfeh3dcecfcllllllllllGGGGhGGGGmlplp6lmlpt1A1Ap0p1RBmlmlBlBmmGGGGGGGGFplBBllpplBBmmlhlBBmmGFqF6GmGFllBl4hlpll06lkl5lA0k0pg000mg1g1B5g5hp05lmkg015Blg081004200llB400hpll06klll5A0k0pg000mg1g1B5llhp05lmklhl5BlmGGGF6GGGFplBlAplplBBmlmlBlBmnFqGGaGGmJlBBBllppplmmmlhlBBBmGFqF6GmGFplllAplllBBllmlBllmmGGGGGGGGFlllllllllk"
 var ghosts = []
@@ -49,14 +52,12 @@ var gamepadHeldAxes = []
 var settingCustomKey = false
 var customKeyIndex = 0
 var gameInterval = null
+var music = true
+var sfx = true
 
 /*
 	TODO:
-	Add run mechanism when superpellet has been eaten
-	Improve graphics
-	Slower ghosts when running
-	Fix AI
-	Different exit times
+	Menu decoration
 	Music and effects
 
 	EXTRAS:
@@ -68,6 +69,13 @@ var gameInterval = null
 	1 -> up
 	2 -> left
 	3 -> down
+
+	Screens:
+	0 -> menu
+	1 -> load level
+	2 -> game
+	3 -> settings
+	4 -> level editor
 */
 
 window.onload = function () {
@@ -88,6 +96,7 @@ window.onload = function () {
 					edible: false,
 					dead: false,
 					gating: true,
+					stuck: false,
 					leavingGate: false,
 					leavingDirection: 0,
 					colour: colours[i]
@@ -105,71 +114,109 @@ window.onload = function () {
 			decode(mapString)
 			canvasElement.width = tileSize * sizeX
 			canvasElement.height = tileSize * (sizeY + 2)
-			screen = 1
+			screen = 2
 			gameInterval = setInterval(game, 1000/60)
 		}
 	})
 	menuOptions.push({
-		text: "Set RIGHT",
+		text: "Settings",
+		action: function() {
+			screen = 3
+			selectedOption = 0
+		}
+	})
+	menuOptions.push({
+		text: "Level Editor",
+		action: function() {
+			//screen = 4
+		}
+	})
+	settingsOptions.push({
+		text: "Set Right",
 		action: function() {
 			settingCustomKey = true
 			customKeyIndex = 0
 		}
 	})
-	menuOptions.push({
-		text: "Set UP",
+	settingsOptions.push({
+		text: "Set Up",
 		action: function() {
 			settingCustomKey = true
 			customKeyIndex = 1
 		}
 	})
-	menuOptions.push({
-		text: "Set LEFT",
+	settingsOptions.push({
+		text: "Set Left",
 		action: function() {
 			settingCustomKey = true
 			customKeyIndex = 2
 		}
 	})
-	menuOptions.push({
-		text: "Set DOWN",
+	settingsOptions.push({
+		text: "Set Down",
 		action: function() {
 			settingCustomKey = true
 			customKeyIndex = 3
 		}
 	})
-	menuOptions.push({
-		text: "Set ENTER",
+	settingsOptions.push({
+		text: "Set Enter",
 		action: function() {
 			settingCustomKey = true
 			customKeyIndex = 4
 		}
 	})
+	settingsOptions.push({
+		text: "Toggle Music",
+		action: function() {
+			music = !music
+		}
+	})
+	settingsOptions.push({
+		text: "Toggle SFX",
+		action: function() {
+			sfx = !sfx
+		}
+	})
+	settingsOptions.push({
+		text: "Return to Menu",
+		action: function() {
+			screen = 0
+			selectedOption = 0
+		}
+	})
 	keyActions.push(function() {
-		if(screen == 1) {
+		if(screen == 2) {
 			pacmanNextDirection = 0
 		}
 	})
 	keyActions.push(function() {
-		if(screen == 0) {
-			selectedOption = (selectedOption + menuOptions.length - 1) % menuOptions.length
-		} else {
+		if(screen == 3) {
+			selectedOption = (selectedOption + settingsOptions.length - 1) % settingsOptions.length
+		} else if (screen == 2) {
 			pacmanNextDirection = 1
+		} else if (screen == 0) {
+			selectedOption = (selectedOption + menuOptions.length - 1) % menuOptions.length
 		}
 	})
 	keyActions.push(function() {
-		if(screen == 1) {
+		if(screen == 2) {
 			pacmanNextDirection = 2
 		}
 	})
 	keyActions.push(function() {
-		if(screen == 0) {
-			selectedOption = (selectedOption + 1) % menuOptions.length
-		} else {
+		if(screen == 3) {
+			selectedOption = (selectedOption + 1) % settingsOptions.length
+		} else if(screen == 2) {
 			pacmanNextDirection = 3
+		} else if (screen == 0) {
+			selectedOption = (selectedOption + 1) % menuOptions.length
 		}
 	})
 	keyActions.push(function() {
-		if(screen == 0) {
+		if(screen == 3) {
+			settingsOptions[selectedOption].action()
+		} else if (screen == 0) {
 			menuOptions[selectedOption].action()
 		}
 	})
@@ -362,6 +409,7 @@ function decode(string) {
 		}
 	}
 	dots = mapDots
+	maxDots = mapDots
 }
 
 function gateAt(x, y) {
@@ -484,7 +532,7 @@ function doBFS(ghost, endPoint) {
 	return dir
 }
 
-function searchAdjacent(ghost) {
+function searchAdjacent(ghost, targetX, targetY) {
 	var wallLeft = ghost.direction == 0 && map[ghost.y][(ghost.x + 1) % sizeX].type == 1
 	var wallUp = ghost.direction == 1 && map[(ghost.y - 1 + sizeY) % sizeY][ghost.x].type == 1
 	var wallRight = ghost.direction == 2 && map[ghost.y][(ghost.x - 1 + sizeX) % sizeX].type == 1
@@ -502,7 +550,7 @@ function searchAdjacent(ghost) {
 				x: (point.x + 1) % sizeX,
 				y: point.y,
 				dir: 0,
-				dist: (pacmanX - ((point.x + 1) % sizeX)) * (pacmanX - ((point.x + 1) % sizeX)) + (pacmanY - point.y) * (pacmanY - point.y)
+				dist: (targetX - ((point.x + 1) % sizeX)) * (targetX - ((point.x + 1) % sizeX)) + (targetY - point.y) * (targetY - point.y)
 			})
 		}
 		if(map[(point.y - 1 + sizeY) % sizeY][point.x].type != 1 && gateAt(point.x, (point.y - 1 + sizeY) % sizeY) == false) {
@@ -510,7 +558,7 @@ function searchAdjacent(ghost) {
 				x: point.x,
 				y: (point.y - 1 + sizeY) % sizeY,
 				dir: 1,
-				dist: (pacmanX - point.x) * (pacmanX - point.x) + (pacmanY - ((point.y - 1 + sizeY) % sizeY)) * (pacmanY - ((point.y - 1 + sizeY) % sizeY))
+				dist: (targetX - point.x) * (targetX - point.x) + (targetY - ((point.y - 1 + sizeY) % sizeY)) * (targetY - ((point.y - 1 + sizeY) % sizeY))
 			})
 		}
 		if(map[point.y][(point.x - 1 + sizeX) % sizeX].type != 1 && gateAt((point.x - 1 + sizeX) % sizeX, point.y) == false) {
@@ -518,7 +566,7 @@ function searchAdjacent(ghost) {
 				x: (point.x - 1 + sizeX) % sizeX,
 				y: point.y,
 				dir: 2,
-				dist: (pacmanX - ((point.x - 1 + sizeX) % sizeX)) * (pacmanX - ((point.x - 1 + sizeX) % sizeX)) + (pacmanY - point.y) * (pacmanY - point.y)
+				dist: (targetX - ((point.x - 1 + sizeX) % sizeX)) * (targetX - ((point.x - 1 + sizeX) % sizeX)) + (targetY - point.y) * (targetY - point.y)
 			})
 		}
 		if(map[(point.y + 1) % sizeY][point.x].type != 1 && gateAt(point.x, (point.y + 1) % sizeY) == false) {
@@ -526,31 +574,58 @@ function searchAdjacent(ghost) {
 				x: point.x,
 				y: (point.y + 1) % sizeY,
 				dir: 3,
-				dist: (pacmanX - point.x) * (pacmanX - point.x) + (pacmanY - ((point.y + 1) % sizeY)) * (pacmanY - ((point.y + 1) % sizeY))
+				dist: (targetX - point.x) * (targetX - point.x) + (targetY - ((point.y + 1) % sizeY)) * (targetY - ((point.y + 1) % sizeY))
 			})
 		}
+	}
+	if(wallCount == 4) {
+		ghost.stuck = true
 	}
 	return queue
 }
 
 function moveBlinky(ghost, amount) {
 	if(ghost.subX == 0 && ghost.subY == 0) {
-		ghost.direction = doBFS(ghost, {
-			x: pacmanX,
-			y: pacmanY,
-			dir: ghost.direction
-		})
+		var queue = searchAdjacent(ghost, pacmanX, pacmanY)
+		if(queue.length == 1) {
+			ghost.direction = queue[0].dir
+		} else if(queue.length > 1) {
+			var point = {
+				dir: -1,
+				dist: 999999
+			}
+			for(var i = 0; i < queue.length; i++) {
+				if(queue[i].dist < point.dist && queue[i].dir != (ghost.direction + 2) % 4) {
+					point = queue[i]
+				}
+			}
+			ghost.direction = point.dir
+		}
 	}
 	moveGhost(ghost, amount)
 }
 
 function movePinky(ghost, amount) {
 	if(ghost.subX == 0 && ghost.subY == 0) {
-		var queue = searchAdjacent(ghost)
-		if(queue.length > 0) {
-			point = queue[0]
-			for(var i = 1; i < queue.length; i++) {
-				if(queue[i].dist < point.dist) {
+		var queue = null
+		if(pacmanDirection == 0) {
+			queue = searchAdjacent(ghost, (pacmanX + 6) % sizeX, pacmanY)
+		} else if (pacmanDirection == 1) {
+			queue = searchAdjacent(ghost, pacmanX, (pacmanY - 6 + sizeY) % sizeY)
+		} else if (pacmanDirection == 2) {
+			queue = searchAdjacent(ghost, (pacmanX - 6 + sizeX) % sizeX, pacmanY)
+		} else {
+			queue = searchAdjacent(ghost, pacmanX, (pacmanY + 6) % sizeY)
+		}
+		if(queue.length == 1) {
+			ghost.direction = queue[0].dir
+		} else if(queue.length > 1) {
+			var point = {
+				dir: -1,
+				dist: 999999
+			}
+			for(var i = 0; i < queue.length; i++) {
+				if(queue[i].dist < point.dist && queue[i].dir != (ghost.direction + 2) % 4) {
 					point = queue[i]
 				}
 			}
@@ -562,18 +637,21 @@ function movePinky(ghost, amount) {
 
 function moveInky(ghost, amount) {
 	if(ghost.subX == 0 && ghost.subY == 0) {
-		var queue = searchAdjacent(ghost)
-		if(queue.length > 0) {
-			point = queue[0]
-			if(Math.random() < 0.4) {
-				for(var i = 1; i < queue.length; i++) {
-					if(queue[i].dist < point.dist) {
-						point = queue[i]
-					}
+		var targetX = (2 * pacmanX - ghosts[0].x + sizeX) % sizeX
+		var targetY = (2 * pacmanY - ghosts[0].y + sizeY) % sizeY
+		var queue = searchAdjacent(ghost, targetX, targetY)
+		if(queue.length == 1) {
+			ghost.direction = queue[0].dir
+		} else if(queue.length > 1) {
+			var point = {
+				dir: -1,
+				dist: 999999
+			}
+			for(var i = 0; i < queue.length; i++) {
+				if(queue[i].dist < point.dist && queue[i].dir != (ghost.direction + 2) % 4) {
+					point = queue[i]
 				}
-			} else {
-				point = queue[Math.floor(Math.random() * queue.length)]
-			} 
+			}
 			ghost.direction = point.dir
 		}
 	}
@@ -582,22 +660,53 @@ function moveInky(ghost, amount) {
 
 function moveClyde(ghost, amount) {
 	if(ghost.subX == 0 && ghost.subY == 0) {
-		var queue = searchAdjacent(ghost)
-		if(queue.length > 0) {
-			point = queue[Math.floor(Math.random() * queue.length)]
-			ghost.direction = point.dir
+		var distance = (ghost.x - pacmanX) * (ghost.x - pacmanX) + (ghost.y - pacmanY) * (ghost.y - pacmanY)
+		var queue = searchAdjacent(ghost, pacmanX, pacmanY)
+		if(distance > 64) {
+			if(queue.length == 1) {
+				ghost.direction = queue[0].dir
+			} else if(queue.length > 1) {
+				var point = {
+					dir: -1,
+					dist: 999999
+				}
+				for(var i = 0; i < queue.length; i++) {
+					if(queue[i].dist < point.dist && queue[i].dir != (ghost.direction + 2) % 4) {
+						point = queue[i]
+					}
+				}
+				ghost.direction = point.dir
+			}
+		} else {
+			if(queue.length == 1) {
+				ghost.direction = queue[0].dir
+			} else if(queue.length > 1) {
+				var point = {
+					dir: -1,
+					dist: -1
+				}
+				for(var i = 0; i < queue.length; i++) {
+					if(queue[i].dist > point.dist && queue[i].dir != (ghost.direction + 2) % 4) {
+						point = queue[i]
+					}
+				}
+				ghost.direction = point.dir
+			}
 		}
 	}
 	moveGhost(ghost, amount)
 }
 
 function moveGhost(ghost, amount) {
+	if(ghost.stuck == true) {
+		return
+	}
 	if(ghost.leavingGate == true) {
 		ghost.leavingGate = false
 		ghost.direction = ghost.leavingDirection
 	}
 	if(ghost.edible == true && ghost.dead == false) {
-		//amount /= 2
+		amount /= 2
 	}
 	if(ghost.subX == 0 && ghost.subY == 0) {
 		if(ghost.dead == true) {
@@ -621,6 +730,22 @@ function moveGhost(ghost, amount) {
 				dir: ghost.direction
 			})
 			ghost.leavingDirection = ghost.direction
+		} else if (ghost.edible == true) {
+			var queue = searchAdjacent(ghost, pacmanX, pacmanY)
+			if(queue.length == 1) {
+				ghost.direction = queue[0].dir
+			} else if(queue.length > 1) {
+				var point = {
+					dir: -1,
+					dist: -1
+				}
+				for(var i = 0; i < queue.length; i++) {
+					if(queue[i].dist > point.dist && queue[i].dir != (ghost.direction + 2) % 4) {
+						point = queue[i]
+					}
+				}
+				ghost.direction = point.dir
+			}
 		}
 		var wallLeft = ghost.direction == 0 && map[ghost.y][(ghost.x + 1) % sizeX].type == 1
 		var wallUp = ghost.direction == 1 && map[(ghost.y - 1 + sizeY) % sizeY][ghost.x].type == 1
@@ -638,16 +763,16 @@ function moveGhost(ghost, amount) {
 		} else {
 			ghost.subY += amount
 		}
-	} else if (ghost.subX == tileSize) {
+	} else if (ghost.subX >= tileSize) {
 		ghost.subX = 0
 		ghost.x++
-	} else if (ghost.subY == tileSize) {
+	} else if (ghost.subY >= tileSize) {
 		ghost.subY = 0
 		ghost.y++
-	} else if (ghost.subX == -tileSize) {
+	} else if (ghost.subX <= -tileSize) {
 		ghost.subX = 0
 		ghost.x--
-	} else if (ghost.subY == -tileSize) {
+	} else if (ghost.subY <= -tileSize) {
 		ghost.subY = 0
 		ghost.y--
 	} else {
@@ -712,8 +837,12 @@ function game() {
 		movePacman(pacmanDirection, 1.5)
 		moveBlinky(ghosts[0], 1.5)
 		movePinky(ghosts[1], 1.5)
-		moveInky(ghosts[2], 1.5)
-		moveClyde(ghosts[3], 1.5)
+		if(dots <= 7 * maxDots / 8) {
+			moveInky(ghosts[2], 1.5)
+		}
+		if(dots <= 2 * maxDots / 3) {
+			moveClyde(ghosts[3], 1.5)
+		}
 		if(Math.random() < 0.001 && currentFruit < Math.min(8, level)) {
 			fruit[currentFruit].edible = true
 		}
@@ -842,6 +971,11 @@ function game() {
 			}
 			eating = 0
 		}
+		flashTime--
+		if(flashTime < 0) {
+			flashTime = 20
+			flash = !flash
+		}
 	}
 }
 
@@ -850,23 +984,25 @@ function draw() {
 		canvas.fillStyle = "black"
 		canvas.fillRect(0, 0, canvasElement.width, canvasElement.height)
 		canvas.lineWidth = 2
-		canvas.textAlign = "center";
+		canvas.textAlign = "center"
+		canvas.textBaseline = "middle"
 		canvas.font = "20px sans-serif"
 		for(var i = 0; i < menuOptions.length; i++) {
-			canvas.strokeStyle = "white"
+			canvas.fillStyle = "rgb(36, 36, 36)"
 			if(selectedOption == i) {
-				canvas.strokeStyle = "blue"
+				canvas.fillStyle = "green"
 			}
-			var containerWidth = 300
-			var containerHeight = 60
-			canvas.strokeRect(canvasElement.width / 2 - containerWidth / 2, containerHeight * (1.5 * i + 0.5), containerWidth, containerHeight);
+			var containerWidth = 250
+			var containerHeight = 50
+			var separationFloat = 1.2
+			var startHeight = 60
+			canvas.fillRect(canvasElement.width / 2 - containerWidth / 2, containerHeight * (separationFloat * i) + startHeight, containerWidth, containerHeight);
 			canvas.fillStyle = "white"
-			if(settingCustomKey == true && i == customKeyIndex + 1) {
-				canvas.fillStyle = "red"
-			}
-			canvas.fillText(menuOptions[i].text, canvasElement.width / 2, containerHeight * (1.5 * i + 1))
+			canvas.fillText(menuOptions[i].text, canvasElement.width / 2, containerHeight * (separationFloat * i + 0.5) + startHeight)
 		}
 	} else if (screen == 1) {
+		//load level screen	
+	} else if (screen == 2) {
 		canvas.fillStyle = "black"
 		canvas.fillRect(0, 0, tileSize * sizeX, tileSize * (sizeY + 2))
 		var mapDots = 0
@@ -912,10 +1048,12 @@ function draw() {
 						mapDots++
 						break
 					case 3: //megadot
-						canvas.fillStyle = "white"
-						canvas.beginPath()
-						canvas.arc(tileSize * (x + 0.5), tileSize * (y + 1.5), megadotRadius, 0, Math.PI * 2, true)
-						canvas.fill()
+						if(flash == true) {
+							canvas.fillStyle = "white"
+							canvas.beginPath()
+							canvas.arc(tileSize * (x + 0.5), tileSize * (y + 1.5), megadotRadius, 0, Math.PI * 2, true)
+							canvas.fill()
+						}
 						mapDots++
 						break;
 				}
@@ -970,9 +1108,14 @@ function draw() {
 		canvas.fillRect(0, 0, tileSize * sizeX, tileSize)
 		canvas.fillRect(0, tileSize * (sizeY + 1), tileSize * sizeX, tileSize)
 		canvas.fillStyle = "white"
-		canvas.textAlign = "start";
+		canvas.textAlign = "start"
+		canvas.textBaseline = "alphabetic"
 		canvas.font = "16px sans-serif"
 		canvas.fillText(score, 4, tileSize * 0.9)
+		if(flash == true) {
+			canvas.textAlign = "end"
+			canvas.fillText("1UP", tileSize * sizeX - 4, tileSize * 0.9)
+		}
 		for(var i = 0; i < lives; i++) {
 			canvas.fillStyle = "yellow"
 			canvas.beginPath()
@@ -987,10 +1130,33 @@ function draw() {
 			}
 		}
 		canvas.fillStyle = "white"
-		canvas.textAlign = "center";
+		canvas.textAlign = "center"
 		canvas.font = "10px sans-serif"
 		for(var i = 0; i < labels.length; i++) {
 			canvas.fillText(labels[i].text, (labels[i].x + 0.5) * tileSize, (labels[i].y + 1.75) * tileSize)
+		}
+	} else if (screen == 3) {
+		canvas.fillStyle = "black"
+		canvas.fillRect(0, 0, canvasElement.width, canvasElement.height)
+		canvas.lineWidth = 2
+		canvas.textAlign = "center"
+		canvas.textBaseline = "middle"
+		canvas.font = "20px sans-serif"
+		for(var i = 0; i < settingsOptions.length; i++) {
+			canvas.fillStyle = "rgb(36, 36, 36)"
+			if(selectedOption == i) {
+				canvas.fillStyle = "green"
+			}
+			if(settingCustomKey == true && i == customKeyIndex) {
+				canvas.fillStyle = "purple"
+			}
+			var containerWidth = 250
+			var containerHeight = 50
+			var separationFloat = 1.2
+			var startHeight = 60
+			canvas.fillRect(canvasElement.width / 2 - containerWidth / 2, containerHeight * (separationFloat * i) + startHeight, containerWidth, containerHeight);
+			canvas.fillStyle = "white"
+			canvas.fillText(settingsOptions[i].text, canvasElement.width / 2, containerHeight * (separationFloat * i + 0.5) + startHeight)
 		}
 	}
 	requestAnimationFrame(draw)
