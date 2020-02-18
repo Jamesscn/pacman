@@ -58,7 +58,9 @@ var sfx = true
 /*
 	TODO:
 	Menu decoration
+	Fruit icons
 	Music and effects
+	Save preferences
 
 	EXTRAS:
 	Level editor
@@ -128,6 +130,7 @@ window.onload = function () {
 	menuOptions.push({
 		text: "Level Editor",
 		action: function() {
+			alert("This feature is currently in development")
 			//screen = 4
 		}
 	})
@@ -430,39 +433,40 @@ function movePacman(direction, amount) {
 	if(direction == 0) {
 		if(pacmanSubX == 0 && map[pacmanY][(pacmanX + 1) % sizeX].type != 1 && gateAt((pacmanX + 1) % sizeX, pacmanY) == false) {
 			pacmanSubX += amount
-		} else if(pacmanSubX == tileSize) {
-			pacmanX++
-			pacmanSubX = 0
 		} else if (pacmanSubX > 0) {
 			pacmanSubX += amount
 		}
 	} else if (direction == 1) {
 		if(pacmanSubY == 0 && map[(pacmanY - 1 + sizeY) % sizeY][pacmanX].type != 1 && gateAt(pacmanX, (pacmanY - 1 + sizeY) % sizeY) == false) {
 			pacmanSubY -= amount
-		} else if(pacmanSubY == -tileSize) {
-			pacmanY--
-			pacmanSubY = 0
 		} else if(pacmanSubY < 0) {
 			pacmanSubY -= amount
 		}
 	} else if (direction == 2) {
 		if(pacmanSubX == 0 && map[pacmanY][(pacmanX - 1 + sizeX) % sizeX].type != 1 && gateAt((pacmanX - 1 + sizeX) % sizeX, pacmanY) == false) {
 			pacmanSubX -= amount
-		} else if(pacmanSubX == -tileSize) {
-			pacmanX--
-			pacmanSubX = 0
 		} else if (pacmanSubX < 0) {
 			pacmanSubX -= amount
 		}
 	} else {
 		if(pacmanSubY == 0 && map[(pacmanY + 1) % sizeY][pacmanX].type != 1 && gateAt(pacmanX, (pacmanY + 1) % sizeY) == false) {
 			pacmanSubY += amount
-		} else if(pacmanSubY == tileSize) {
-			pacmanY++
-			pacmanSubY = 0
 		} else if (pacmanSubY > 0) {
 			pacmanSubY += amount
 		}
+	}
+	if (pacmanSubX >= tileSize) {
+		pacmanSubX = 0
+		pacmanX++
+	} else if (pacmanSubY >= tileSize) {
+		pacmanSubY = 0
+		pacmanY++
+	} else if (pacmanSubX <= -tileSize) {
+		pacmanSubX = 0
+		pacmanX--
+	} else if (pacmanSubY <= -tileSize) {
+		pacmanSubY = 0
+		pacmanY--
 	}
 	if(pacmanX == sizeX) {
 		pacmanX = 0
