@@ -29,15 +29,11 @@ var fruitY = 0
 var currentFruit = 0
 var dots = -1
 var maxDots = -1
-var loading = 200
-var eating = 0
 var eatScore = 200
 var fruit = []
 var fruitScores = [100, 300, 500, 700, 1000, 2000, 3000, 5000]
 var modScore = 0
 var mouthStretch = 0
-var deathAnimation = 0
-var flashTime = 20
 var flash = true
 var threshold = 0.5
 var mapString = "tvencdgdcfgfeh3dcecfcllllllllllGGGGhGGGGmlplp6lmlpt1A1Ap0p1RBmlmlBlBmmGGGGGGGGFplBBllpplBBmmlhlBBmmGFqF6GmGFllBl4hlpll06lkl5lA0k0pg000mg1g1B5g5hp05lmkg015Blg081004200llB400hpll06klll5A0k0pg000mg1g1B5llhp05lmklhl5BlmGGGF6GGGFplBlAplplBBmlmlBlBmnFqGGaGGmJlBBBllppplmmmlhlBBBmGFqF6GmGFplllAplllBBllmlBllmmGGGGGGGGFlllllllllk"
@@ -54,6 +50,12 @@ var customKeyIndex = 0
 var gameInterval = null
 var music = true
 var sfx = true
+var fps = 30
+var moveAmount = 90 / fps
+var loading = 4 * fps
+var eating = 0
+var flashTime = fps / 3
+var deathAnimation = 0
 
 /*
 	TODO:
@@ -109,7 +111,7 @@ window.onload = function () {
 					score: fruitScores[i],
 					available: false,
 					edible: false,
-					timeout: 1000
+					timeout: 20 * fps
 				}
 			}
 			fruit[0].available = true
@@ -117,7 +119,7 @@ window.onload = function () {
 			canvasElement.width = tileSize * sizeX
 			canvasElement.height = tileSize * (sizeY + 2)
 			screen = 2
-			gameInterval = setInterval(game, 1000/60)
+			gameInterval = setInterval(game, 1000/fps)
 		}
 	})
 	menuOptions.push({
@@ -135,35 +137,35 @@ window.onload = function () {
 		}
 	})
 	settingsOptions.push({
-		text: "Set Right",
+		text: "Rebind Right",
 		action: function() {
 			settingCustomKey = true
 			customKeyIndex = 0
 		}
 	})
 	settingsOptions.push({
-		text: "Set Up",
+		text: "Rebind Up",
 		action: function() {
 			settingCustomKey = true
 			customKeyIndex = 1
 		}
 	})
 	settingsOptions.push({
-		text: "Set Left",
+		text: "Rebind Left",
 		action: function() {
 			settingCustomKey = true
 			customKeyIndex = 2
 		}
 	})
 	settingsOptions.push({
-		text: "Set Down",
+		text: "Rebind Down",
 		action: function() {
 			settingCustomKey = true
 			customKeyIndex = 3
 		}
 	})
 	settingsOptions.push({
-		text: "Set Enter",
+		text: "Rebind Select",
 		action: function() {
 			settingCustomKey = true
 			customKeyIndex = 4
@@ -224,7 +226,7 @@ window.onload = function () {
 		}
 	})
 	draw()
-	setInterval(gamepadListener, 1000/60)
+	setInterval(gamepadListener, 1000/fps)
 }
 
 document.addEventListener("keydown", function(event) {
@@ -809,7 +811,7 @@ function game() {
 		loading--
 	} else if (deathAnimation > 0) {
 		deathAnimation--
-		mouthStretch += 0.03
+		mouthStretch += 1.8 / fps
 		if(deathAnimation == 0) {
 			lives--
 			if(lives >= 0) {
@@ -835,17 +837,17 @@ function game() {
 				})
 				clearInterval(gameInterval)
 			}
-			loading = 200
+			loading = 4 * fps
 		}
 	} else {
-		movePacman(pacmanDirection, 1.5)
-		moveBlinky(ghosts[0], 1.5)
-		movePinky(ghosts[1], 1.5)
+		movePacman(pacmanDirection, moveAmount)
+		moveBlinky(ghosts[0], moveAmount)
+		movePinky(ghosts[1], moveAmount)
 		if(dots <= 7 * maxDots / 8) {
-			moveInky(ghosts[2], 1.5)
+			moveInky(ghosts[2], moveAmount)
 		}
 		if(dots <= 2 * maxDots / 3) {
-			moveClyde(ghosts[3], 1.5)
+			moveClyde(ghosts[3], moveAmount)
 		}
 		if(Math.random() < 0.001 && currentFruit < Math.min(8, level)) {
 			fruit[currentFruit].edible = true
@@ -871,7 +873,7 @@ function game() {
 			score += 50
 			modScore += 50
 			map[pacmanY][pacmanX].type = 0
-			eating = 500
+			eating = 8 * fps
 			eatScore = 200
 			for(var i = 0; i < 4; i++) {
 				if(ghosts[i].dead == false) {
@@ -902,7 +904,7 @@ function game() {
 			if(x1 && x2 && y1 && y2) {
 				if(ghosts[i].dead == false && ghosts[i].edible == false) {
 					mouthStretch = 0
-					deathAnimation = 90
+					deathAnimation = fps * 1.5
 				} else if(ghosts[i].edible == true && ghosts[i].dead == false) {
 					ghosts[i].dead = true;
 					score += eatScore
@@ -954,11 +956,11 @@ function game() {
 			for(var i = 0; i < Math.min(8, level); i++) {
 				fruit[i].available = true;
 				fruit[i].edible = false;
-				fruit[i].timeout = 1000;
+				fruit[i].timeout = 20 * fps;
 			}
 			currentFruit = 0
 			decode(mapString)
-			loading = 200
+			loading = 4 * fps
 			eating = 0
 		}
 		if(modScore >= 10000) {
@@ -977,7 +979,7 @@ function game() {
 		}
 		flashTime--
 		if(flashTime < 0) {
-			flashTime = 20
+			flashTime = fps / 3
 			flash = !flash
 		}
 	}
@@ -1074,7 +1076,7 @@ function draw() {
 			}
 		}
 		for(var i = 0; i < 4; i++) {
-			if(ghosts[i].colour == "blue" && eating < 200 && Math.floor(eating / 20) % 2 == 0) {
+			if(ghosts[i].colour == "blue" && eating < 4 * fps && Math.floor(eating * 3 / fps) % 2 == 0) {
 				canvas.fillStyle = "white"
 			} else {
 				canvas.fillStyle = ghosts[i].colour
