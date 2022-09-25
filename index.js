@@ -57,6 +57,43 @@ var eating = 0
 var flashTime = fps / 3
 var deathAnimation = 0
 
+function sound(src) {
+    this.sound = document.createElement("audio")
+    this.sound.src = src
+    this.sound.setAttribute("preload", "auto")
+    this.sound.setAttribute("controls", "none")
+    this.sound.style.display = "none"
+	this.loopInterval = null
+    document.body.appendChild(this.sound)
+    this.play = function() {
+        this.sound.play()
+    }
+	this.stop = function() {
+		this.sound.fastSeek(0)
+		this.sound.pause()
+	}
+	this.startLoop = function() {
+		loopSound = this.sound
+		this.loopInterval = setInterval(() => {
+			loopSound.play()
+		}, 100)
+		loopSound.play()
+	}
+	this.stopLoop = function() {
+		this.sound.fastSeek(0)
+		this.sound.pause()
+		if(this.loopInterval != null) {
+			clearInterval(this.loopInterval)
+			this.loopInterval = null
+		}
+	}
+}
+
+var bgmusic = new sound("music/pacman.mp3")
+var rushmusic = new sound("music/pacmanrush.mp3")
+//var eatsound = new sound("sfx/eat.mp3")
+//var deathsound = new sound("sfx/death.mp3")
+
 /*
 	TODO:
 	Menu decoration
@@ -120,6 +157,9 @@ window.onload = function () {
 			canvasElement.height = tileSize * (sizeY + 2)
 			screen = 2
 			gameInterval = setInterval(game, 1000/fps)
+			if(music) {
+				bgmusic.startLoop()
+			}
 		}
 	})
 	menuOptions.push({
@@ -836,6 +876,8 @@ function game() {
 					y: fruitY
 				})
 				clearInterval(gameInterval)
+				bgmusic.stopLoop()
+				rushmusic.stopLoop()
 			}
 			loading = 4 * fps
 		}
@@ -873,13 +915,20 @@ function game() {
 			score += 50
 			modScore += 50
 			map[pacmanY][pacmanX].type = 0
-			eating = 8 * fps
+			eating = 16 * fps
 			eatScore = 200
 			for(var i = 0; i < 4; i++) {
 				if(ghosts[i].dead == false) {
 					ghosts[i].edible = true
 					ghosts[i].colour = "blue"
 				}
+			}
+			if(music) {
+				bgmusic.stopLoop()
+				rushmusic.play()
+				setTimeout(() => {
+					bgmusic.startLoop()
+				}, 16 * 1000)
 			}
 		}
 		for(var i = 0; i < fruit.length; i++) {
